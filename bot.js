@@ -1,5 +1,6 @@
 const qrcode = require('qrcode-terminal');
 const { Client, LocalAuth } = require('whatsapp-web.js');
+const fs = require('fs'); // Include fs module for file writing
 
 const questions = [
     "היי! איזה כיף שנפגשנו! ברוכים הבאים למאשרים בקליק, קודם כל והכי חשוב מזל טוב 🎉 אנחנו כאן כדי לוודא שהאירוע שלך יהיה מושלם מהקליק הראשון\n\nאז מה התאריך האירוע שלך? 📅",
@@ -29,10 +30,9 @@ whatsapp.on('ready', () => {
     console.log('Client is ready!');
 });
 
-
 const MESSAGE_DELAY = 2500; // 2-second delay between messages
 const TIMEOUT_DURATION = 60000; // 1-minute timeout to clear state
-const COOLDOWN_DURATION = 60000; // 1-minute wait after beffore new conversation
+const COOLDOWN_DURATION = 60000; // 1-minute wait after before new conversation
 
 whatsapp.on('message', async (message) => {
     const userId = message.from;
@@ -57,7 +57,7 @@ whatsapp.on('message', async (message) => {
     } else {
         const userState = userStates[userId];
 
-        // Add the message to the pending string for combine the waiting
+        // Add the message to the pending string for combining the waiting
         userState.pendingMessages = userState.pendingMessages
             ? userState.pendingMessages + " " + message.body.trim()
             : message.body.trim();
@@ -84,6 +84,10 @@ whatsapp.on('message', async (message) => {
             } else {
                 await message.reply(finalMessage);
                 console.log(`User ${userId} answers:`, userState.answers);
+                
+                // Write answers to file with timestamp
+                writeAnswersToFile(userId, userState.answers);
+
                 startCooldown(userId);
             }
         }, MESSAGE_DELAY);
@@ -128,7 +132,7 @@ function resetSessionTimeout(userId, message) {
 }
 
 /**
- * wait to the manager to answer
+ * Wait to the manager to answer
  */
 function startCooldown(userId) {
     const userState = userStates[userId];
@@ -148,6 +152,20 @@ function clearUserState(userId) {
     }
 }
 
+/**
+ * Write the answers to a file with timestamp, user ID, and answer.
+ */
+function writeAnswersToFile(userId, answers) {
+    const timestamp = new Date().toISOString();
+    const logEntry = `${timestamp} | User ID: ${userId} | Answers: ${JSON.stringify(answers)}\n`;
 
+    fs.appendFile('user_answers.log', logEntry, (err) => {
+        if (err) {
+            console.error('Error writing to file:', err);
+        } else {
+            console.log('Answer logged to file.');
+        }
+    });
+}
 
 whatsapp.initialize();
